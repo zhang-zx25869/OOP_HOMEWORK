@@ -8,7 +8,7 @@ class Dependency
 {
     public:
         enum class Type {FS, SS, SF, FF};
-        
+
     private:
         Task* D_Predecessor;
         Task* D_Successor;
