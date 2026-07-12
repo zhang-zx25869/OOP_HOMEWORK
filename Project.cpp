@@ -67,6 +67,12 @@ void Project::SetName(const std::string& name)
 
 void Project::AddTask(const std::string& name, unsigned int duration)
 {
+    for (unsigned int i = 0; i < P_Tasks.size(); ++i)
+    {
+        if (P_Tasks[i]->GetName() == name)
+            throw std::invalid_argument("AddTask: 该任务已存在");
+    }
+
     Task* newTask = nullptr;
     if (duration > 0)
         newTask = new BasicTask(name, duration);
@@ -130,9 +136,9 @@ unsigned int Project::GetTaskCount() const
 std::vector<Task*> Project::GetPredecessors(Task* task) const
 {
     std::vector<Task*> result;
-    for(unsigned int i = 0; i < P_Dependencies.size(); i++)
+    for (unsigned int i = 0; i < P_Dependencies.size(); i++)
     {
-        if(P_Dependencies[i]->GetSuccessor() == task)
+        if (P_Dependencies[i]->GetSuccessor() == task)
         {
             result.push_back(P_Dependencies[i]->GetPredecessor());
         }
@@ -143,9 +149,9 @@ std::vector<Task*> Project::GetPredecessors(Task* task) const
 std::vector<Task*> Project::GetSuccessors(Task* task) const
 {
     std::vector<Task*> result;
-    for(unsigned int i = 0; i < P_Dependencies.size(); i++)
+    for (unsigned int i = 0; i < P_Dependencies.size(); i++)
     {
-        if(P_Dependencies[i]->GetPredecessor() == task)
+        if (P_Dependencies[i]->GetPredecessor() == task)
         {
             result.push_back(P_Dependencies[i]->GetSuccessor());
         }
@@ -155,9 +161,9 @@ std::vector<Task*> Project::GetSuccessors(Task* task) const
 
 int Project::FindTaskIndex(Task* task) const
 {
-    for(unsigned int i = 0; i < P_Tasks.size(); i++)
+    for (unsigned int i = 0; i < P_Tasks.size(); i++)
     {
-        if(P_Tasks[i] == task)
+        if (P_Tasks[i] == task)
         {
             return static_cast<int>(i);
         }
@@ -167,12 +173,19 @@ int Project::FindTaskIndex(Task* task) const
 
 void Project::ModifyTask(unsigned int index, const std::string& name, unsigned int duration)
 {
-    if(index >= P_Tasks.size())
+    if (index >= P_Tasks.size())
         throw std::out_of_range("ModifyTask: 索引 " + std::to_string(index) + " 越界");
+
+    for (unsigned int i = 0; i < P_Tasks.size(); ++i)
+    {
+        if (P_Tasks[i]->GetName() == name && i != index)
+            throw std::invalid_argument("ModifyTask: 该任务已存在");
+    }
 
     Task* oldTask = P_Tasks[index];
 
-    if((oldTask->IsBasicTask() && duration > 0) || (!oldTask->IsBasicTask() && duration == 0))
+    if ((oldTask->IsBasicTask() && duration > 0)
+        || (!oldTask->IsBasicTask() && duration == 0))
     {
         oldTask->SetName(name);
         oldTask->SetDuration(duration);
@@ -181,7 +194,7 @@ void Project::ModifyTask(unsigned int index, const std::string& name, unsigned i
 
     Task* newTask = nullptr;
 
-    if(duration > 0)
+    if (duration > 0)
     {
         newTask = new BasicTask(name, duration);
     }
@@ -219,6 +232,12 @@ void Project::ModifyTask(unsigned int index, const std::string& name, unsigned i
 
 void Project::AddResource(const std::string& name, double unitCost)
 {
+    for (unsigned int i = 0; i < P_Resources.size(); ++i)
+    {
+        if (P_Resources[i]->GetName() == name)
+            throw std::invalid_argument("AddResource: 该资源已存在");
+    }
+
     Resource* newRes = new Resource(name, unitCost);
     P_Resources.push_back(newRes);
 }
@@ -275,6 +294,12 @@ void Project::ModifyResource(unsigned int index, const std::string& name, double
 {
     if (index >= P_Resources.size())
         throw std::out_of_range("ModifyResource: 索引 " + std::to_string(index) + " 越界");
+
+    for (unsigned int i = 0; i < P_Resources.size(); ++i)
+    {
+        if (P_Resources[i]->GetName() == name && i != index)
+            throw std::invalid_argument("ModifyResource: 该资源名已存在");
+    }
 
     P_Resources[index]->SetName(name);
     P_Resources[index]->SetUnitCost(unitCost);
@@ -342,6 +367,8 @@ void Project::AddAssignment(unsigned int taskID, unsigned int resourceID, unsign
         throw std::out_of_range("AddAssignment: taskID " + std::to_string(taskID) + " 越界");
     if (resourceID >= P_Resources.size())
         throw std::out_of_range("AddAssignment: resourceID " + std::to_string(resourceID) + " 越界");
+    if (!P_Tasks[taskID]->IsBasicTask())
+        throw std::invalid_argument("MileStoneTask 不可占用资源");
 
     // 检查重复
     for (unsigned int i = 0; i < P_Assignments.size(); ++i)

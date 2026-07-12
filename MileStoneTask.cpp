@@ -5,7 +5,7 @@ MilestoneTask::MilestoneTask(const std::string& Name)
 {
 }
 
-bool MilestoneTask::IsBasicTask() const 
+bool MilestoneTask::IsBasicTask() const
 {
     return false;
 }

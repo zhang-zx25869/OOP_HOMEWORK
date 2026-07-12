@@ -5,7 +5,7 @@ BasicTask::BasicTask(const std::string& Name, unsigned int duration)
 {
 }
 
-bool BasicTask::IsBasicTask() const 
+bool BasicTask::IsBasicTask() const
 {
     return true;
 }

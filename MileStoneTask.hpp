@@ -7,7 +7,7 @@ class MilestoneTask : public Task
 {
     public:
         bool IsBasicTask() const override;
-        
+
         MilestoneTask(const std::string& Name);
 };
 
