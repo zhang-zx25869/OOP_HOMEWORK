@@ -6,12 +6,16 @@
 class Resource
 {
     private:
+        unsigned int R_ID;
         std::string R_Name;
         double R_UnitCost;
 
     public:
-        Resource(const std::string& Name, double unitcost);
+        Resource(unsigned int id, const std::string& Name, double unitcost);
         ~Resource() = default;
+
+        unsigned int GetID() const;
+        void SetID(unsigned int id);
 
         const std::string& GetName() const;
         double GetUnitCost() const;

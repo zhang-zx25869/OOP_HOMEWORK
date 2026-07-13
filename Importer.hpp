@@ -11,7 +11,7 @@ class Importer
         Importer() = default;
         virtual ~Importer() = default;
 
-        virtual Project* Import(const std::string& filename) const = 0;
+        virtual void Import(const std::string& filename, Project& project) const = 0;
 };
 
 #endif

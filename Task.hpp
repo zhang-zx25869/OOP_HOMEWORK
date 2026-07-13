@@ -6,6 +6,7 @@
 class Task
 {
     private:
+        unsigned int T_ID;
         std::string T_Name;
         unsigned int T_Duration;
 
@@ -17,8 +18,11 @@ class Task
     public:
         virtual bool IsBasicTask() const = 0;
 
-        Task(const std::string& Name, unsigned int duration);
+        Task(unsigned int id, const std::string& Name, unsigned int duration);
         virtual ~Task() = default;
+
+        unsigned int GetID() const;
+        void SetID(unsigned int id);
 
         const std::string& GetName() const;
         unsigned int GetDuration() const;

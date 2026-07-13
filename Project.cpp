@@ -1,6 +1,4 @@
 #include "Project.hpp"
-#include "BasicTask.hpp"
-#include "MileStoneTask.hpp"
 #include <stdexcept>
 #include <unordered_map>
 #include <queue>
@@ -45,6 +43,9 @@ void Project::Clear()
     P_Dependencies.clear();
     P_Assignments.clear();
 
+    P_TaskIDMap.clear();
+    P_ResourceIDMap.clear();
+
 }
 
 // ================================================================
@@ -67,18 +68,29 @@ void Project::SetName(const std::string& name)
 
 void Project::AddTask(const std::string& name, unsigned int duration)
 {
+    unsigned int id = GenerateTaskID();
+    AddTask(id, name, duration);
+}
+
+void Project::AddTask(unsigned int id, const std::string& name, unsigned int duration)
+{
     for (unsigned int i = 0; i < P_Tasks.size(); ++i)
     {
         if (P_Tasks[i]->GetName() == name)
             throw std::invalid_argument("AddTask: 该任务已存在");
     }
 
+    if (P_TaskIDMap.find(id) != P_TaskIDMap.end())
+        throw std::invalid_argument("AddTask: ID " + std::to_string(id) + " 已被占用");
+
     Task* newTask = nullptr;
     if (duration > 0)
-        newTask = new BasicTask(name, duration);
+        newTask = new BasicTask(id, name, duration);
     else
-        newTask = new MilestoneTask(name);
+        newTask = new MilestoneTask(id, name);
+
     P_Tasks.push_back(newTask);
+    P_TaskIDMap[id] = newTask;
 }
 
 void Project::RemoveTask(unsigned int index)
@@ -115,6 +127,8 @@ void Project::RemoveTask(unsigned int index)
         }
     }
 
+    P_TaskIDMap.erase(task->GetID());
+
     delete task;
 
     P_Tasks.erase(P_Tasks.begin() + index);
@@ -126,6 +140,14 @@ Task* Project::GetTask(unsigned int index) const
     if (index >= P_Tasks.size())
         throw std::out_of_range("GetTask: 索引 " + std::to_string(index) + " 越界");
     return P_Tasks[index];
+}
+
+Task* Project::GetTaskByID(unsigned int id) const
+{
+    auto it = P_TaskIDMap.find(id);
+    if (it == P_TaskIDMap.end())
+        throw std::out_of_range("GetTaskByID: ID " + std::to_string(id) + " 不存在");
+    return it->second;
 }
 
 unsigned int Project::GetTaskCount() const
@@ -171,6 +193,17 @@ int Project::FindTaskIndex(Task* task) const
     throw std::runtime_error("FindTaskIndex: 未找到该 Task");
 }
 
+unsigned int Project::GenerateTaskID() const
+{
+    unsigned int maxID = 0;
+    for (unsigned int i = 0; i < P_Tasks.size(); ++i)
+    {
+        if (P_Tasks[i]->GetID() > maxID)
+            maxID = P_Tasks[i]->GetID();
+    }
+    return maxID + 1;
+}
+
 void Project::ModifyTask(unsigned int index, const std::string& name, unsigned int duration)
 {
     if (index >= P_Tasks.size())
@@ -196,11 +229,11 @@ void Project::ModifyTask(unsigned int index, const std::string& name, unsigned i
 
     if (duration > 0)
     {
-        newTask = new BasicTask(name, duration);
+        newTask = new BasicTask(oldTask->GetID(), name, duration);
     }
     else
     {
-        newTask = new MilestoneTask(name);
+        newTask = new MilestoneTask(oldTask->GetID(), name);
     }
 
     for (unsigned int i = 0; i < P_Dependencies.size(); i++)
@@ -232,14 +265,24 @@ void Project::ModifyTask(unsigned int index, const std::string& name, unsigned i
 
 void Project::AddResource(const std::string& name, double unitCost)
 {
+    unsigned int id = GenerateResourceID();
+    AddResource(id, name, unitCost);
+}
+
+void Project::AddResource(unsigned int id, const std::string& name, double unitCost)
+{
     for (unsigned int i = 0; i < P_Resources.size(); ++i)
     {
         if (P_Resources[i]->GetName() == name)
             throw std::invalid_argument("AddResource: 该资源已存在");
     }
 
-    Resource* newRes = new Resource(name, unitCost);
+    if (P_ResourceIDMap.find(id) != P_ResourceIDMap.end())
+        throw std::invalid_argument("AddResource: ID " + std::to_string(id) + " 已被占用");
+
+    Resource* newRes = new Resource(id, name, unitCost);
     P_Resources.push_back(newRes);
+    P_ResourceIDMap[id] = newRes;
 }
 
 void Project::RemoveResource(unsigned int index)
@@ -263,6 +306,8 @@ void Project::RemoveResource(unsigned int index)
         }
     }
 
+    P_ResourceIDMap.erase(oldRes->GetID());
+
     delete oldRes;
 
     P_Resources.erase(P_Resources.begin() + index);
@@ -273,6 +318,14 @@ Resource* Project::GetResource(unsigned int index) const
     if (index >= P_Resources.size())
         throw std::out_of_range("GetResource: 索引 " + std::to_string(index) + " 越界");
     return P_Resources[index];
+}
+
+Resource* Project::GetResourceByID(unsigned int id) const
+{
+    auto it = P_ResourceIDMap.find(id);
+    if (it == P_ResourceIDMap.end())
+        throw std::out_of_range("GetResourceByID: ID " + std::to_string(id) + " 不存在");
+    return it->second;
 }
 
 unsigned int Project::GetResourceCount() const
@@ -288,6 +341,17 @@ int Project::FindResourceIndex(Resource* resource) const
             return static_cast<int>(i);
     }
     throw std::runtime_error("FindResourceIndex: 未找到该 Resource");
+}
+
+unsigned int Project::GenerateResourceID() const
+{
+    unsigned int maxID = 0;
+    for (unsigned int i = 0; i < P_Resources.size(); ++i)
+    {
+        if (P_Resources[i]->GetID() > maxID)
+            maxID = P_Resources[i]->GetID();
+    }
+    return maxID + 1;
 }
 
 void Project::ModifyResource(unsigned int index, const std::string& name, double unitCost)
@@ -324,7 +388,9 @@ void Project::AddDependency(unsigned int predecessorID, unsigned int successorID
             throw std::invalid_argument("AddDependency: 该依赖关系已存在");
     }
 
-    Dependency* dep = new Dependency(P_Tasks[predecessorID], P_Tasks[successorID], type, lag);
+    Dependency* dep = new Dependency(P_Tasks[predecessorID],
+                                      P_Tasks[successorID],
+                                      type, lag);
     P_Dependencies.push_back(dep);
 }
 
@@ -378,7 +444,9 @@ void Project::AddAssignment(unsigned int taskID, unsigned int resourceID, unsign
             throw std::invalid_argument("AddAssignment: 该资源分配已存在");
     }
 
-    Assignment* newassignment = new Assignment(P_Tasks[taskID], P_Resources[resourceID], quantity);
+    Assignment* newassignment = new Assignment(P_Tasks[taskID],
+                                                P_Resources[resourceID],
+                                                quantity);
     P_Assignments.push_back(newassignment);
 }
 
@@ -417,220 +485,6 @@ unsigned int Project::GetAssignmentCount() const
 }
 
 // ================================================================
-//  算法：拓扑排序（Kahn 算法）
-// ================================================================
-
-/* std::vector<Task*> Project::TopologicalSort() const
-{
-    std::vector<Task*> result;
-    int n = static_cast<int>(P_Tasks.size());
-    if (n == 0)
-        return result;
-
-    // 建立 Task* → index 的映射
-    std::unordered_map<Task*, int> taskToIndex;
-    for (int i = 0; i < n; ++i)
-        taskToIndex[P_Tasks[i]] = i;
-
-    // 计算每个任务的入度（仅考虑 FS / SS，因为 SF / FF 不阻止任务开始）
-    std::vector<int> inDegree(n, 0);
-    for (const Dependency* d : P_Dependencies)
-    {
-        Task* succ = d->GetSuccessor();
-        auto  it   = taskToIndex.find(succ);
-        if (it != taskToIndex.end())
-        {
-            Dependency::Type type = d->GetType();
-            if (type == Dependency::Type::FS || type == Dependency::Type::SS)
-                ++inDegree[it->second];
-        }
-    }
-
-    // Kahn BFS
-    std::queue<int> q;
-    for (int i = 0; i < n; ++i)
-        if (inDegree[i] == 0)
-            q.push(i);
-
-    while (!q.empty())
-    {
-        int u = q.front();
-        q.pop();
-        result.push_back(P_Tasks[u]);
-
-        for (const Dependency* d : P_Dependencies)
-        {
-            if (d->GetPredecessor() != P_Tasks[u])
-                continue;
-
-            Dependency::Type type = d->GetType();
-            if (type != Dependency::Type::FS && type != Dependency::Type::SS)
-                continue;
-
-            Task* succ = d->GetSuccessor();
-            int   v    = taskToIndex[succ];
-            --inDegree[v];
-            if (inDegree[v] == 0)
-                q.push(v);
-        }
-    }
-
-    return result;
-}
-
-// ================================================================
-//  算法：关键路径（CPM — Precedence Diagramming Method）
-// ================================================================
-
-std::vector<Task*> Project::CalculateCriticalPath()
-{
-    std::vector<Task*> criticalPath;
-    int n = static_cast<int>(P_Tasks.size());
-    if (n == 0)
-        return criticalPath;
-
-    // ---- 1. 拓扑排序 ----
-    std::vector<Task*> sorted = TopologicalSort();
-
-    // Task* → index
-    std::unordered_map<Task*, int> taskToIndex;
-    for (int i = 0; i < n; ++i)
-        taskToIndex[P_Tasks[i]] = i;
-
-    // ============================================================
-    //  正向传递（Forward Pass）—— 计算 ES / EF
-    // ============================================================
-
-    for (Task* t : P_Tasks)
-    {
-        t->SetES(0);
-        t->SetEF(static_cast<int>(t->GetDuration()));
-    }
-
-    for (Task* curr : sorted)
-    {
-        int durCurr = static_cast<int>(curr->GetDuration());
-        int bestES  = curr->GetES();
-        int bestEF  = curr->GetEF();
-
-        for (const Dependency* d : P_Dependencies)
-        {
-            if (d->GetSuccessor() != curr)
-                continue;
-
-            Task* pred = d->GetPredecessor();
-            int   lag  = d->GetLag();
-
-            switch (d->GetType())
-            {
-            case Dependency::Type::FS:
-                // ES >= EF_pred + lag
-                bestES = std::max(bestES, pred->GetEF() + lag);
-                break;
-
-            case Dependency::Type::SS:
-                // ES >= ES_pred + lag
-                bestES = std::max(bestES, pred->GetES() + lag);
-                break;
-
-            case Dependency::Type::FF:
-                // EF >= EF_pred + lag → ES >= EF_pred + lag - dur
-                bestEF = std::max(bestEF, pred->GetEF() + lag);
-                bestES = std::max(bestES, pred->GetEF() + lag - durCurr);
-                break;
-
-            case Dependency::Type::SF:
-                // EF >= ES_pred + lag → ES >= ES_pred + lag - dur
-                bestEF = std::max(bestEF, pred->GetES() + lag);
-                bestES = std::max(bestES, pred->GetES() + lag - durCurr);
-                break;
-            }
-        }
-
-        curr->SetES(bestES);
-        curr->SetEF(std::max(bestEF, bestES + durCurr));
-    }
-
-    // ============================================================
-    //  反向传递（Backward Pass）—— 计算 LS / LF
-    // ============================================================
-
-    // 项目工期 = 最大 EF
-    int projectDuration = 0;
-    for (Task* t : P_Tasks)
-    {
-        if (t->GetEF() > projectDuration)
-            projectDuration = t->GetEF();
-    }
-
-    for (Task* t : P_Tasks)
-    {
-        t->SetLF(projectDuration);
-        t->SetLS(projectDuration - static_cast<int>(t->GetDuration()));
-    }
-
-    // 逆拓扑序
-    for (auto it = sorted.rbegin(); it != sorted.rend(); ++it)
-    {
-        Task* curr   = *it;
-        int   durCurr = static_cast<int>(curr->GetDuration());
-        int   bestLF  = curr->GetLF();
-        int   bestLS  = curr->GetLS();
-
-        for (const Dependency* d : P_Dependencies)
-        {
-            if (d->GetPredecessor() != curr)
-                continue;
-
-            Task* succ = d->GetSuccessor();
-            int   lag  = d->GetLag();
-
-            switch (d->GetType())
-            {
-            case Dependency::Type::FS:
-                // LF_pred <= LS_succ - lag
-                bestLF = std::min(bestLF, succ->GetLS() - lag);
-                break;
-
-            case Dependency::Type::FF:
-                // LF_pred <= LF_succ - lag
-                bestLF = std::min(bestLF, succ->GetLF() - lag);
-                break;
-
-            case Dependency::Type::SS:
-                // LS_pred <= LS_succ - lag
-                bestLS = std::min(bestLS, succ->GetLS() - lag);
-                break;
-
-            case Dependency::Type::SF:
-                // LS_pred <= LF_succ - lag
-                bestLS = std::min(bestLS, succ->GetLF() - lag);
-                break;
-            }
-        }
-
-        curr->SetLF(bestLF);
-        curr->SetLS(std::min(bestLS, bestLF - durCurr));
-
-        if (curr->GetLS() + durCurr < curr->GetLF())
-            curr->SetLF(curr->GetLS() + durCurr);
-    }
-
-    // ============================================================
-    //  提取关键路径（ES == LS）
-    // ============================================================
-
-    for (Task* t : sorted)
-    {
-        if (t->GetES() == t->GetLS())
-            criticalPath.push_back(t);
-    }
-
-    return criticalPath;
-}
-*/
-
-// ================================================================
 //  算法：项目合理性验证
 // ================================================================
 
@@ -642,63 +496,15 @@ bool Project::IsValid() const
 }
 
 // ----------------------------------------------------------------
-//  条件③：所有 Dependency 引用的 Task 必须存在于 P_Tasks 中
-// ----------------------------------------------------------------
-bool Project::CheckDependencyReference() const
-{
-    for (const Dependency* d : P_Dependencies)
-    {
-        Task* pred = d->GetPredecessor();
-        Task* succ = d->GetSuccessor();
-        bool predFound = false, succFound = false;
-        for (const Task* t : P_Tasks)
-        {
-            if (t == pred) predFound = true;
-            if (t == succ) succFound = true;
-        }
-        if (!predFound || !succFound)
-            return false;
-    }
-    return true;
-}
-
-// ----------------------------------------------------------------
-//  条件①：依赖图无环（Kahn 拓扑排序）
+//  条件①：依赖图无环（复用 TopologicalSort 的 Kahn 算法）
 // ----------------------------------------------------------------
 bool Project::CheckDAG() const
 {
     int n = static_cast<int>(P_Tasks.size());
     if (n == 0) return true;
 
-    std::unordered_map<Task*, int> idx;
-    for (int i = 0; i < n; ++i)
-        idx[P_Tasks[i]] = i;
-
-    std::vector<int> inDegree(n, 0);
-    for (const Dependency* d : P_Dependencies)
-        ++inDegree[idx[d->GetSuccessor()]];
-
-    std::queue<int> q;
-    for (int i = 0; i < n; ++i)
-        if (inDegree[i] == 0)
-            q.push(i);
-
-    int sortedCount = 0;
-    while (!q.empty())
-    {
-        int u = q.front(); q.pop();
-        ++sortedCount;
-        for (const Dependency* d : P_Dependencies)
-        {
-            if (d->GetPredecessor() != P_Tasks[u])
-                continue;
-            int v = idx[d->GetSuccessor()];
-            if (--inDegree[v] == 0)
-                q.push(v);
-        }
-    }
-
-    return sortedCount == n;
+    std::vector<Task*> sorted = TopologicalSort();
+    return static_cast<int>(sorted.size()) == n;
 }
 
 // ----------------------------------------------------------------
@@ -763,4 +569,156 @@ bool Project::CheckIsolatedTask() const
             return false;
 
     return true;
+}
+
+
+// ----------------------------------------------------------------
+//  条件③：所有 Dependency 引用的 Task 必须存在于 P_Tasks 中
+// ----------------------------------------------------------------
+bool Project::CheckDependencyReference() const
+{
+    for (const Dependency* d : P_Dependencies)
+    {
+        Task* pred = d->GetPredecessor();
+        Task* succ = d->GetSuccessor();
+        bool predFound = false, succFound = false;
+        for (const Task* t : P_Tasks)
+        {
+            if (t == pred) predFound = true;
+            if (t == succ) succFound = true;
+        }
+        if (!predFound || !succFound)
+            return false;
+    }
+    return true;
+}
+
+// ================================================================
+//  算法：拓扑排序（用于 CPM 计算）
+// ================================================================
+
+std::vector<Task*> Project::TopologicalSort() const
+{
+    int n = static_cast<int>(P_Tasks.size());
+    std::vector<Task*> order;
+    if (n == 0) return order;
+
+    // 建立 Task → 索引 映射
+    std::unordered_map<Task*, int> idx;
+    for (int i = 0; i < n; ++i)
+        idx[P_Tasks[i]] = i;
+
+    // 计算入度
+    std::vector<int> inDegree(n, 0);
+    for (const Dependency* d : P_Dependencies)
+        ++inDegree[idx[d->GetSuccessor()]];
+
+    // 入度为 0 的节点入队
+    std::queue<int> q;
+    for (int i = 0; i < n; ++i)
+        if (inDegree[i] == 0)
+            q.push(i);
+
+    // Kahn 算法
+    while (!q.empty())
+    {
+        int u = q.front(); q.pop();
+        order.push_back(P_Tasks[u]);
+
+        for (const Dependency* d : P_Dependencies)
+        {
+            if (d->GetPredecessor() != P_Tasks[u])
+                continue;
+            int v = idx[d->GetSuccessor()];
+            if (--inDegree[v] == 0)
+                q.push(v);
+        }
+    }
+
+    return order;
+}
+
+// ================================================================
+//  算法：关键路径法（CPM）计算
+// ================================================================
+
+std::vector<Task*> Project::CalculateCriticalPath()
+{
+    int n = static_cast<int>(P_Tasks.size());
+    std::vector<Task*> criticalPath;
+    if (n == 0) return criticalPath;
+
+    // ---- 前提：项目必须合理 ----
+    if (!IsValid())
+        throw std::runtime_error("CalculateCriticalPath: 项目不合理，无法进行关键路径计算");
+
+    // ---- Step 1：拓扑排序 ----
+    std::vector<Task*> topoOrder = TopologicalSort();
+
+    std::unordered_map<Task*, int> idx;
+    for (int i = 0; i < n; ++i)
+        idx[topoOrder[i]] = i;
+
+    // ---- Step 2：前向传播，计算 ES / EF ----
+    for (int i = 0; i < n; ++i)
+    {
+        Task* curr = topoOrder[i];
+
+        // ES = max( 所有前驱的 EF )，无前驱则 ES = 0
+        int es = 0;
+        std::vector<Task*> preds = GetPredecessors(curr);
+        for (Task* p : preds)
+        {
+            int ef = p->GetEF();
+            if (ef > es) es = ef;
+        }
+
+        curr->SetES(es);
+        curr->SetEF(es + static_cast<int>(curr->GetDuration()));
+    }
+
+    // 项目总工期 = 所有任务的最大 EF
+    int projectDuration = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        int ef = topoOrder[i]->GetEF();
+        if (ef > projectDuration) projectDuration = ef;
+    }
+
+    // ---- Step 3：反向传播，计算 LF / LS ----
+    for (int i = n - 1; i >= 0; --i)
+    {
+        Task* curr = topoOrder[i];
+        std::vector<Task*> succs = GetSuccessors(curr);
+
+        int lf;
+        if (succs.empty())
+        {
+            // 无后继 → LF = 项目总工期
+            lf = projectDuration;
+        }
+        else
+        {
+            // LF = min( 所有后继的 LS )
+            lf = succs[0]->GetLS();
+            for (unsigned int j = 1; j < succs.size(); ++j)
+            {
+                int ls = succs[j]->GetLS();
+                if (ls < lf) lf = ls;
+            }
+        }
+
+        curr->SetLF(lf);
+        curr->SetLS(lf - static_cast<int>(curr->GetDuration()));
+    }
+
+    // ---- Step 4：提取关键路径（ES == LS 的任务，按拓扑序） ----
+    for (int i = 0; i < n; ++i)
+    {
+        Task* t = topoOrder[i];
+        if (t->GetES() == t->GetLS())
+            criticalPath.push_back(t);
+    }
+
+    return criticalPath;
 }

@@ -1,12 +1,23 @@
 #include "Resource.hpp"
 #include <stdexcept>
 
-Resource::Resource(const std::string& Name, double unitcost)
+Resource::Resource(unsigned int id, const std::string& Name, double unitcost)
 {
     if (unitcost < 0)
         throw std::invalid_argument("Resource: unitCost 不能为负数");
+    R_ID = id;
     R_Name = Name;
     R_UnitCost = unitcost;
+}
+
+unsigned int Resource::GetID() const
+{
+    return R_ID;
+}
+
+void Resource::SetID(unsigned int id)
+{
+    R_ID = id;
 }
 
 const std::string& Resource::GetName() const

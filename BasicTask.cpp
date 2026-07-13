@@ -1,7 +1,7 @@
 #include "BasicTask.hpp"
 
-BasicTask::BasicTask(const std::string& Name, unsigned int duration)
-    : Task(Name, duration)
+BasicTask::BasicTask(unsigned int id, const std::string& Name, unsigned int duration)
+    : Task(id, Name, duration)
 {
 }
 

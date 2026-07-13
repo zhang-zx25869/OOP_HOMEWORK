@@ -8,7 +8,7 @@ class BasicTask : public Task
     public:
         bool IsBasicTask() const override;
 
-        BasicTask(const std::string& Name, unsigned int duration);
+        BasicTask(unsigned int id, const std::string& Name, unsigned int duration);
 };
 
 #endif

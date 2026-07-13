@@ -1,13 +1,24 @@
 #include "Task.hpp"
 
-Task::Task(const std::string& Name, unsigned int duration)
+Task::Task(unsigned int id, const std::string& Name, unsigned int duration)
 {
+    T_ID = id;
     T_Name = Name;
     T_Duration = duration;
     T_ES = 0;
     T_EF = 0;
     T_LS = 0;
     T_LF = 0;
+}
+
+unsigned int Task::GetID() const
+{
+    return T_ID;
+}
+
+void Task::SetID(unsigned int id)
+{
+    T_ID = id;
 }
 
 const std::string& Task::GetName() const
